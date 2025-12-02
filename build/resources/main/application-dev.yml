@@ -1,0 +1,47 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  security:
+    allowed-origins:
+      - "https://api.difflens.site"
+      - "https://www.difflens.site"
+      - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
+      - "http://localhost:8080"
+      - "http://localhost:5173"
+      - "http://127.0.0.1:5173"
+
+  datasource:
+    url: ${PSQL_URL}
+    username: ${PSQL_USERNAME}
+    password: ${PSQL_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      timeout: 2000ms
+
+logging:
+  level:
+    root: info
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+
+security:
+  oauth2:
+    client:
+      registration:
+        google:
+          client-id: ${GOOGLE_CLIENT_ID}
+          client-secret: ${GOOGLE_CLIENT_SECRET}
+          redirect-uri: ${GOOGLE_REDIRECT_URI}
+          scope:
+            - profile
+            - email

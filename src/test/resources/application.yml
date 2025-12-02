@@ -1,0 +1,70 @@
+spring:
+  profiles:
+    active: test
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        show_sql: true
+        default_batch_fetch_size: 1000
+
+  sql:
+    init:
+      mode: never
+
+  data:
+    redis:
+      host: localhost
+      port: 6381
+      timeout: 2000ms
+
+  security:
+    allowed-origins:
+      - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
+      - "http://localhost:8080"
+      - "http://localhost:5173"
+      - "http://127.0.0.1:5173"
+
+  jwt:
+    secret: test-jwt-secrettest-jwt-secrettest-jwt-secrettest-jwt-secrettest-jwt-secrettest-jwt-secrettest-jwt-secret
+
+auth:
+  admin_email: test_admin@example.com
+  admin_pw: test1234
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+fast-api:
+  url: http://localhost:8000
+
+security:
+  oauth2:
+    client:
+      registration:
+        google:
+          client-id: test-google-cli
+          client-secret: test-google-cli
+          redirect-uri: test-google-cli

@@ -1,0 +1,41 @@
+spring:
+  profiles:
+    active: local
+  servlet:
+    multipart:
+      max-file-size: 100MB # panel json 넣기 위한 설정
+      max-request-size: 100MB
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_batch_fetch_size: 1000
+
+  sql:
+    init:
+      mode: never
+
+  jwt:
+    secret: ${JWT_SECRET}
+
+auth:
+  admin_email: ${ADMIN_EMAIL}
+  admin_pw: ${ADMIN_EMAIL}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+fast-api:
+  url: ${FAST_API_URL}

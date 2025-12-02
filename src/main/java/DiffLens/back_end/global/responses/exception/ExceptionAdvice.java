@@ -1,0 +1,173 @@
+package DiffLens.back_end.global.responses.exception;
+
+import DiffLens.back_end.global.responses.code.ErrorReasonDto;
+import DiffLens.back_end.global.responses.code.status.error.ErrorStatus;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+
+import jakarta.validation.ConstraintViolationException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+
+@Slf4j
+@RestControllerAdvice(annotations = RestController.class)
+@RequiredArgsConstructor
+public class ExceptionAdvice extends ResponseEntityExceptionHandler {
+
+    @ExceptionHandler
+    public ResponseEntity<Object> validation(ConstraintViolationException e, WebRequest request) {
+        String errorMessage =
+                e.getConstraintViolations().stream()
+                        .map(constraintViolation -> constraintViolation.getMessage())
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "ConstraintViolationException 추출 도중 에러 발생"));
+        return handleExceptionInternalConstraint(
+                e, ErrorStatus.valueOf(errorMessage), HttpHeaders.EMPTY, request);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Object> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException e, WebRequest request) {
+
+        String paramName = e.getName();
+        Object invalidValue = e.getValue();
+        Class<?> requiredType = e.getRequiredType();
+
+        String errorMessage;
+        if (requiredType != null && requiredType.isEnum()) {
+            String enumValues =
+                    String.join(
+                            ", ",
+                            Arrays.stream(requiredType.getEnumConstants())
+                                    .map(Object::toString)
+                                    .toArray(String[]::new));
+            errorMessage =
+                    String.format(
+                            "잘못된 enum 값입니다. [%s=%s], 가능한 값: [%s]",
+                            paramName, invalidValue, enumValues);
+        } else if (requiredType == Long.class || requiredType == Integer.class) {
+            errorMessage = String.format("숫자 타입 파라미터가 잘못되었습니다. [%s=%s]", paramName, invalidValue);
+        } else if (requiredType == java.time.LocalDateTime.class) {
+            errorMessage =
+                    String.format(
+                            "날짜/시간 형식이 잘못되었습니다. [%s=%s], 예: 2024-01-01T12:00:00",
+                            paramName, invalidValue);
+        } else if (requiredType == java.time.LocalDate.class) {
+            errorMessage =
+                    String.format(
+                            "날짜 형식이 잘못되었습니다. [%s=%s], 예: 2024-01-01", paramName, invalidValue);
+        } else {
+            errorMessage =
+                    String.format(
+                            "요청 파라미터 타입이 잘못되었습니다. [%s=%s], 기대 타입: %s",
+                            paramName,
+                            invalidValue,
+                            requiredType != null ? requiredType.getSimpleName() : "알 수 없음");
+        }
+
+        Map<String, String> errorArgs = Map.of(paramName, errorMessage);
+
+        return handleExceptionInternalArgs(
+                e, HttpHeaders.EMPTY, ErrorStatus.valueOf("BAD_REQUEST"), request, errorArgs);
+    }
+
+
+    @Override
+    public ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException e,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+
+        Map<String, String> errors = new LinkedHashMap<>();
+
+        e.getBindingResult().getFieldErrors().forEach(fieldError -> {
+            String fieldName = fieldError.getField();
+            String errorMessage = Optional.ofNullable(fieldError.getDefaultMessage()).orElse("잘못된 값입니다.");
+            errors.put(fieldName, errorMessage);
+        });
+
+        return handleExceptionInternalArgs(
+                e, HttpHeaders.EMPTY, ErrorStatus.valueOf("BAD_REQUEST"), request, errors);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<Object> exception(Exception e, WebRequest request) {
+        e.printStackTrace();
+        return handleExceptionInternalFalse(
+                e,
+                ErrorStatus.INTERNAL_SERVER_ERROR,
+                HttpHeaders.EMPTY,
+                ErrorStatus.INTERNAL_SERVER_ERROR.getHttpStatus(),
+                request,
+                e.getMessage());
+    }
+
+    @ExceptionHandler(value = GeneralException.class)
+    public ResponseEntity onThrowException(
+            GeneralException generalException, HttpServletRequest request) {
+        ErrorReasonDto errorReasonHttpStatus = generalException.getErrorReasonHttpStatus();
+        return handleExceptionInternal(generalException, errorReasonHttpStatus, null, request);
+    }
+
+    private ResponseEntity<Object> handleExceptionInternal(
+            Exception e, ErrorReasonDto reason, HttpHeaders headers, HttpServletRequest request) {
+        ApiResponse<Object> body =
+                ApiResponse.onFailure(reason.getCode(), reason.getMessage(), null);
+        ServletWebRequest webRequest = new ServletWebRequest(request);
+        return super.handleExceptionInternal(e, body, headers, reason.getHttpStatus(), webRequest);
+    }
+
+    private ResponseEntity<Object> handleExceptionInternalFalse(
+            Exception e,
+            ErrorStatus errorCommonStatus,
+            HttpHeaders headers,
+            HttpStatus status,
+            WebRequest request,
+            String errorPoint) {
+        ApiResponse<Object> body =
+                ApiResponse.onFailure(
+                        errorCommonStatus.getCode(), errorCommonStatus.getMessage(), errorPoint);
+        return super.handleExceptionInternal(e, body, headers, status, request);
+    }
+
+    private ResponseEntity<Object> handleExceptionInternalArgs(
+            Exception e,
+            HttpHeaders headers,
+            ErrorStatus errorCommonStatus,
+            WebRequest request,
+            Map<String, String> errorArgs) {
+        ApiResponse<Object> body =
+                ApiResponse.onFailure(
+                        errorCommonStatus.getCode(), errorCommonStatus.getMessage(), errorArgs);
+        return super.handleExceptionInternal(
+                e, body, headers, errorCommonStatus.getHttpStatus(), request);
+    }
+
+    private ResponseEntity<Object> handleExceptionInternalConstraint(
+            Exception e, ErrorStatus errorCommonStatus, HttpHeaders headers, WebRequest request) {
+        ApiResponse<Object> body =
+                ApiResponse.onFailure(
+                        errorCommonStatus.getCode(), errorCommonStatus.getMessage(), null);
+        return super.handleExceptionInternal(
+                e, body, headers, errorCommonStatus.getHttpStatus(), request);
+    }
+}
