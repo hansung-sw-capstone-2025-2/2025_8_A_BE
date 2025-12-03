@@ -103,7 +103,7 @@ docker run -p 8080:8080 --env-file .env difflens-main
 ## Project Structure
 
 ```
-be-main/
+2025_8_A_BE/
 ├── src/main/java/DiffLens/back_end/
 │   ├── Application.java         # 엔트리포인트
 │   ├── domain/
