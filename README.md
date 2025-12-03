@@ -51,8 +51,8 @@ DiffLens Main Server는 패널 데이터 분석 플랫폼의 핵심 백엔드 �
 
 ```bash
 # 저장소 클론
-git clone https://github.com/SW-DiffLens/be-main.git
-cd be-main
+git clone https://github.com/hansung-sw-capstone-2025-2/2025_8_A_BE.git
+cd 2025_8_A_BE
 
 # 빌드
 ./gradlew clean build
